@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MindShift - โฟกัสรูม</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* --- แก้ไขส่วนการซ้อนทับ (Layering) --- */
+
+        .screen-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: none; /* เปลี่ยนเป็น none เพื่อไม่ให้เด้งขึ้นมาพร้อมกัน */
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            color: white;
+            text-align: center;
+            font-family: 'Kanit', sans-serif;
+        }
+
+        /* ตั้งค่าให้หน้า Lobby แสดงผลเป็นหน้าแรกหน้าเดียว */
+        #lobby-screen {
+            display: flex; 
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 3000 !important;
+        }
+
+        .modal-content {
+            background: white;
+            color: #333;
+            padding: 25px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .lobby-container,
+        .setup-container {
+            background: #2c3e50;
+            padding: 30px;
+            border-radius: 20px;
+            border: 4px solid #4db6ac;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        .game-btn {
+            display: block;
+            width: 100%;
+            margin: 10px 0;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.1em;
+            transition: 0.2s;
+        }
+
+        .primary {
+            background: #4db6ac;
+            color: white;
+            box-shadow: 0 4px #00897b;
+        }
+
+        .secondary {
+            background: #ffb74d;
+            color: white;
+            box-shadow: 0 4px #f57c00;
+        }
+
+        .info {
+            background: #4fc3f7;
+            color: white;
+            box-shadow: 0 4px #0288d1;
+        }
+
+        .danger {
+            background: #e57373;
+            color: white;
+            box-shadow: 0 4px #d32f2f;
+        }
+
+        .time-btn {
+            background: #37474f;
+            color: white;
+            border: 2px solid #4db6ac;
+            margin: 5px;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        #reset-btn {
+            display: none;
+            margin: 0 auto;
+            padding: 12px 25px;
+            background-color: #ff4d8d;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-family: 'Kanit', sans-serif;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(255, 77, 141, 0.4);
+            position: relative;
+            z-index: 100;
+            pointer-events: auto;
+        }
+
+        .redeem-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .btn-redeem-item {
+            padding: 20px 10px;
+            border-radius: 20px;
+            border: none;
+            cursor: pointer;
+            font-family: 'Kanit', sans-serif;
+            transition: 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-redeem-small {
+            background: #fce4ec;
+            color: #ad1457;
+            border: 2px solid #f8bbd0;
+        }
+
+        .btn-redeem-large {
+            background: #f3e5f5;
+            color: #6a1b9a;
+            border: 2px solid #e1bee7;
+        }
+
+        .redeem-price {
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        /* --- ✨ ส่วนที่เพิ่มใหม่: สไตล์ปุ่มใต้เพชร ✨ --- */
+        .hud-action-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 10px;
+            align-items: flex-end;
+        }
+
+        .btn-hud-small {
+            border: none;
+            padding: 6px 12px;
+            border-radius: 12px;
+            color: white;
+            cursor: pointer;
+            font-family: 'Kanit', sans-serif;
+            font-size: 0.8rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            transition: 0.2s;
+            width: fit-content;
+        }
+
+        .btn-hud-small.stats { background: linear-gradient(135deg, #4fc3f7, #0288d1); }
+        .btn-hud-small.logout { background: linear-gradient(135deg, #ff8a80, #d32f2f); }
+
+        .btn-hud-small:hover { transform: scale(1.05); filter: brightness(1.1); }
+        .btn-hud-small:active { transform: scale(0.95); }
+    </style>
+</head>
+
+<body class="game-body">
+
+    <div id="lobby-screen" class="screen-overlay">
+        <div class="lobby-container">
+            <h1 style="color: #4db6ac; margin-bottom: 5px;">MIND SHIFT</h1>
+            <p style="margin-bottom: 20px;">🎓 <span id="lobby-name">...</span></p>
+            <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                คะแนนสะสม: <span id="lobby-pts" style="color: #ffd700; font-weight: bold;">0</span> 💎
+            </div>
+            <button class="game-btn primary" onclick="handleShowSetup()">🎮 เริ่มโหมดเรียน</button>
+            <button class="game-btn secondary" onclick="window.openShop()">🛒 ร้านค้าแฟชั่น</button>
+            <button class="game-btn info" onclick="window.showStatistics()">📊 สถิติโฟกัส</button>
+            <button class="game-btn danger" onclick="window.logout()">🚪 ออกจากระบบ</button>
+        </div>
+    </div>
+
+    <div id="setup-screen" class="screen-overlay">
+        <div class="setup-container">
+            <h2 style="color: #4db6ac;">⏱️ ตั้งค่าคาบเรียน</h2>
+            <p style="margin-bottom: 20px;">ระบบจะแบ่งเป็นช่วงละ 30 นาที</p>
+            <div class="time-options">
+                <button class="time-btn" onclick="window.selectDuration(60)">1 ชั่วโมง (2 ช่วง)</button>
+                <button class="time-btn" onclick="window.selectDuration(120)">2 ชั่วโมง (4 ช่วง)</button>
+                <button class="time-btn" onclick="window.selectDuration(180)">3 ชั่วโมง (6 ช่วง)</button>
+            </div>
+            <button class="game-btn danger" onclick="handleHideSetup()" style="margin-top: 20px;">ย้อนกลับ</button>
+        </div>
+    </div>
+
+    <div class="game-content-wrapper" id="main-game-area" style="display: none;">
+        <div class="top-hud">
+            <div class="hud-item timer-box">⏱️ <span id="timer">30:00</span></div>
+            <div class="hud-item energy-container">
+                <div class="energy-bar-bg">
+                    <div id="energy-fill" class="energy-fill"></div>
+                </div>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                <div class="hud-item points-box">💎 <span id="pts">0</span></div>
+                
+                <div class="hud-action-group">
+                    <button class="btn-hud-small stats" onclick="window.showStatistics()">
+                        📊 <span>สถิติ</span>
+                    </button>
+                    <button class="btn-hud-small logout" onclick="window.logout()">
+                        🚪 <span>ออก</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="character-layer">
+            <div class="status-group">
+                <div id="status-msg">กำลังใช้สมาธิ... ✨</div>
+                <button id="reset-btn" onclick="window.restartSession()">🔄 เริ่มรอบใหม่</button>
+            </div>
+            <img id="main-character-img" src="images/girl_1.png" alt="Character">
+        </div>
+
+        <div class="bottom-nav">
+            <div id="student-name-display" class="user-pill">ผู้เล่น</div>
+            <div class="nav-buttons-group">
+                <button class="btn-action shop" onclick="window.openShop()">🛒 ร้านค้า</button>
+                <button class="btn-action redeem" onclick="openRedeemModal()">🎁 แลกรางวัล</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="redeem-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🎁 แลกรางวัลนิสิต</h3>
+                <div class="points-badge">แต้มปัจจุบัน: <span id="current-points">0</span></div>
+            </div>
+            <div class="redeem-grid">
+                <button class="btn-redeem-item btn-redeem-small" onclick="window.processRedeem(50)">
+                    <span>🎀 รางวัลย่อย</span>
+                    <span class="redeem-price">50 แต้ม</span>
+                </button>
+                <button class="btn-redeem-item btn-redeem-large" onclick="window.processRedeem(100)">
+                    <span>🏆 รางวัลใหญ่</span>
+                    <span class="redeem-price">100 แต้ม</span>
+                </button>
+            </div>
+            <div class="modal-footer" style="margin-top: 20px; text-align: right;">
+                <button class="btn-close-modal" onclick="closeRedeemModal()">ปิดหน้าต่าง</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="shop-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="shop-tabs">
+                    <button class="tab-btn active" onclick="window.switchShopTab('skins')">👗 ชุดแฟชั่น</button>
+                    <button class="tab-btn" onclick="window.switchShopTab('backgrounds')">🖼️ พื้นหลัง</button>
+                </div>
+                <span class="points-badge">💎 <span id="shop-pts-balance">0</span> แต้ม</span>
+            </div>
+            <div class="shop-grid">
+                <div class="preview-area">
+                    <div class="preview-card"><img id="shop-preview-img" src=""></div>
+                    <p id="preview-item-name" style="color: #333;">เลือกสิ่งที่ชอบ</p>
+                </div>
+                <div class="items-list"></div>
+            </div>
+            <div class="modal-footer" style="margin-top: 20px; text-align: right;">
+                <button class="btn-buy" id="confirm-buy-btn">ยืนยันการซื้อ</button>
+                <button class="btn-close-modal" onclick="window.closeShop()">ปิด</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="module" src="game-logic.js"></script>
+
+    <script>
+        // --- 🟢 ฟังก์ชันจัดการหน้าจอ 🟢 ---
+        function handleShowSetup() {
+            playSfx('tap');
+            document.getElementById('lobby-screen').style.setProperty('display', 'none', 'important');
+            document.getElementById('setup-screen').style.setProperty('display', 'flex', 'important');
+        }
+
+        function handleHideSetup() {
+            playSfx('tap');
+            document.getElementById('setup-screen').style.setProperty('display', 'none', 'important');
+            document.getElementById('lobby-screen').style.setProperty('display', 'flex', 'important');
+        }
+
+        window.handleShowSetup = handleShowSetup;
+        window.handleHideSetup = handleHideSetup;
+
+        const sfx = {
+            tap: new Audio('https://actions.google.com/sounds/v1/foley/button_click.ogg')
+        };
+
+        function playSfx(name) {
+            if (sfx[name]) {
+                sfx[name].currentTime = 0;
+                sfx[name].play().catch(() => { });
+            }
+        }
+
+        function openRedeemModal() {
+            playSfx('tap');
+            document.getElementById('redeem-modal').style.display = 'flex';
+        }
+
+        function closeRedeemModal() {
+            playSfx('tap');
+            document.getElementById('redeem-modal').style.display = 'none';
+        }
+
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('button')) playSfx('tap');
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedName = localStorage.getItem('ms_name') || "ผู้เล่น";
+            if (document.getElementById('lobby-name')) document.getElementById('lobby-name').textContent = savedName;
+            if (document.getElementById('student-name-display')) document.getElementById('student-name-display').textContent = savedName;
+        });
+
+        // --- ✨ ส่วนที่เพิ่มเข้าไปเพื่อแก้ปัญหา "ลบแล้วเด้งกลับไม่ได้" ✨ ---
+        // ฟังก์ชันนี้จะคอยเช็ค LocalStorage ถ้าโดนสั่งล้างจาก Logic หลัก ให้เด้งกลับหน้า Login ทันที
+        window.addEventListener('storage', (e) => {
+            if (e.key === null) { // กรณีโดน localStorage.clear()
+                window.location.href = 'index.html';
+            }
+        });
+    </script>
+</body>
+
+</html>

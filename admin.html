@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard ผู้ดูแล - MindShift</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f4f7f6;
+            overflow-y: auto;
+            font-family: 'Kanit', sans-serif;
+            margin: 0;
+        }
+
+        .admin-container {
+            max-width: 1150px;
+            margin: 40px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 25px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+        }
+
+        h2 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .admin-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+            padding: 12px 20px;
+            border-radius: 12px;
+            border: 1px solid #ddd;
+            outline: none;
+            transition: 0.3s;
+            font-family: 'Kanit', sans-serif;
+        }
+
+        .search-box:focus {
+            border-color: #4db6ac;
+            box-shadow: 0 0 0 3px rgba(77, 182, 172, 0.2);
+        }
+
+        .stats-badge {
+            background: #e0f2f1;
+            color: #00796b;
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-weight: bold;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            table-layout: fixed;
+        }
+
+        th {
+            background: #f8f9fa;
+            color: #7f8c8d;
+            padding: 18px;
+            text-align: left;
+            border-bottom: 2px solid #eee;
+            text-transform: uppercase;
+            font-size: 0.85em;
+        }
+
+        td {
+            padding: 15px 18px;
+            border-bottom: 1px solid #eee;
+            vertical-align: middle;
+            word-wrap: break-word;
+        }
+
+        th:nth-child(1),
+        td:nth-child(1) {
+            width: 30%;
+        }
+
+        th:nth-child(2),
+        td:nth-child(2) {
+            width: 15%;
+        }
+
+        th:nth-child(3),
+        td:nth-child(3) {
+            width: 20%;
+        }
+
+        th:nth-child(4),
+        td:nth-child(4) {
+            width: 35%;
+        }
+
+        /* --- สไตล์แสดงสถานะ --- */
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+
+        .status-online {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .status-online::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #4caf50;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #4caf50;
+        }
+
+        /* ✨ แก้ไขเป็นสีส้มสำหรับล็อคหน้าจอ ✨ */
+        .status-lock {
+            background: #fff3e0;
+            color: #ef6c00;
+        }
+
+        .status-lock::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #ff9800;
+            border-radius: 50%;
+        }
+
+        .status-away {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .status-away::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #f44336;
+            border-radius: 50%;
+            animation: pulse-red 1.5s infinite;
+        }
+
+        .status-offline {
+            background: #eceff1;
+            color: #90a4ae;
+            border: 1px solid #cfd8dc;
+        }
+
+        @keyframes pulse-red {
+            0% {
+                box-shadow: 0 0 0 0px rgba(244, 67, 54, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(244, 67, 54, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0px rgba(244, 67, 54, 0);
+            }
+        }
+
+        /* --- ปุ่มและการจัดการ --- */
+        .action-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: nowrap;
+            align-items: center;
+        }
+
+        .btn-cut {
+            background: #ff4081;
+            color: white;
+            border: none;
+            padding: 10px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-family: 'Kanit', sans-serif;
+        }
+
+        .btn-cut:hover {
+            background: #e91e63;
+            transform: translateY(-2px);
+        }
+
+        .btn-cut-small {
+            background: #fb8c00;
+        }
+
+        .btn-bonus {
+            background: #4db6ac;
+            color: white;
+            border: none;
+            padding: 10px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-delete-admin {
+            background: #ff4d4d;
+            color: white;
+            border: none;
+            padding: 10px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-weight: bold;
+        }
+
+        .btn-delete-admin:hover {
+            background: #cc0000;
+            box-shadow: 0 4px 10px rgba(255, 77, 77, 0.3);
+        }
+
+        .pts-badge {
+            color: #ffa000;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .student-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .student-info img {
+            border-radius: 50%;
+            border: 2px solid #eee;
+            width: 45px;
+            height: 45px;
+            object-fit: contain;
+        }
+
+        tr:hover {
+            background-color: #fcfcfc;
+        }
+
+        @media (max-width: 900px) {
+            table {
+                table-layout: auto;
+            }
+
+            .action-group {
+                flex-wrap: wrap;
+            }
+
+            .status-pill span {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="admin-container">
+        <h2>📊 รายชื่อและคะแนนนิสิต
+            <span
+                style="font-size: 0.6em; background: #34495e; color: white; padding: 4px 12px; border-radius: 20px; vertical-align: middle;">
+                Admin Panel
+            </span>
+        </h2>
+
+        <div class="admin-controls">
+            <input type="text" id="search-input" class="search-box" placeholder="🔍 ค้นหาชื่อนิสิต...">
+            <div class="stats-badge">นิสิตในระบบ: <span id="total-count">0</span> คน</div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>นิสิต</th>
+                    <th>คะแนนสะสม</th>
+                    <th>สถานะโฟกัส</th>
+                    <th>การจัดการ</th>
+                </tr>
+            </thead>
+            <tbody id="admin-table-body">
+                <tr>
+                    <td colspan="4" style="text-align:center; padding: 40px; color: #999;">
+                        🔄 กำลังเชื่อมต่อฐานข้อมูล...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <script type="module" src="admin-logic.js"></script>
+</body>
+
+</html>

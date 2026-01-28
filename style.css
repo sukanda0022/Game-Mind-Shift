@@ -1,0 +1,783 @@
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap');
+
+/* --- 1. Base Setup (ปรับปรุง) --- */
+* {
+    box-sizing: border-box;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+body,
+html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow-x: hidden;
+    font-family: 'Kanit', sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.screen-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    z-index: 1000;
+    padding: 20px;
+}
+
+/* --- [คงเดิม] Admin Table Stability Fix --- */
+.admin-container {
+    padding: 20px;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+th,
+td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+    overflow: hidden;
+}
+
+th:nth-child(1),
+td:nth-child(1) {
+    width: 45%;
+}
+
+th:nth-child(2),
+td:nth-child(2) {
+    width: 15%;
+}
+
+th:nth-child(3),
+td:nth-child(3) {
+    width: 40%;
+}
+
+.action-group {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-start;
+    align-items: center;
+    flex-wrap: nowrap;
+}
+
+.btn-delete-admin {
+    background-color: #ff4d4d;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 13px;
+    transition: all 0.2s ease;
+    min-width: 60px;
+    z-index: 10;
+    position: relative;
+}
+
+.btn-delete-admin:hover {
+    background-color: #cc0000;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(255, 77, 77, 0.4);
+}
+
+.btn-delete-admin:active {
+    transform: scale(0.9);
+}
+
+#admin-table-body tr {
+    transition: background 0.3s;
+}
+
+#admin-table-body tr:hover {
+    background-color: #fff9f9;
+}
+
+.pts-badge {
+    white-space: nowrap;
+    font-weight: bold;
+    color: #2c3e50;
+    min-width: 60px;
+}
+
+/* --- 2. Login Page Styles (แก้ไขเฉพาะส่วนวิดีโอและการจัดกึ่งกลาง) --- */
+.login-bg {
+    position: relative;
+    width: 100vw;
+    min-height: 100vh;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    padding: 20px;
+    background: #000;
+    overflow: hidden;
+}
+
+#login-bg-video {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    min-width: 100%;
+    min-height: 100%;
+    width: auto;
+    height: auto;
+    z-index: 0;
+    transform: translate(-50%, -50%);
+    /* บังคับให้วิดีโออยู่กึ่งกลางหน้าจอเสมอ */
+    object-fit: cover;
+    /* ป้องกันวิดีโอยืดเบี้ยว */
+    filter: brightness(0.4);
+}
+
+.login-card {
+    position: relative;
+    z-index: 1;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 30px 20px;
+    border-radius: 30px;
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.brand-title {
+    color: #fff;
+    margin-top: 0;
+    margin-bottom: 5px;
+    font-size: 2rem;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.brand-subtitle {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.9rem;
+    margin-bottom: 30px;
+}
+
+.avatar-selection {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+}
+
+.avatar-opt {
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    padding: 15px;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: 0.3s;
+    width: 135px;
+    background: rgba(255, 255, 255, 0.08);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: white;
+}
+
+.avatar-opt img {
+    width: 100%;
+    height: 100px;
+    object-fit: contain;
+    object-position: top;
+    margin-bottom: 10px;
+    filter: drop-shadow(0 5px 15px rgba(0, 0, 0, 0.3));
+}
+
+.avatar-opt.selected {
+    border-color: #4db6ac;
+    background: rgba(77, 182, 172, 0.25);
+    transform: translateY(-8px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+.input-group input {
+    width: 100%;
+    padding: 14px 20px;
+    margin-bottom: 15px;
+    border: none;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    font-family: 'Kanit';
+    font-size: 1rem;
+    box-sizing: border-box;
+    outline: none;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.anime-btn {
+    width: 100%;
+    padding: 15px;
+    background: linear-gradient(135deg, #4db6ac, #00796b);
+    color: white;
+    border: none;
+    border-radius: 15px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 8px 20px rgba(0, 121, 107, 0.3);
+}
+
+.anime-btn:hover {
+    transform: scale(1.02);
+    box-shadow: 0 12px 25px rgba(0, 121, 107, 0.4);
+}
+
+/* --- 3. [คงเดิม] Game Page (Background, HUD & Character) --- */
+.game-body {
+    background-size: cover;
+    background-position: center bottom;
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    display: block !important;
+}
+
+.top-hud {
+    position: absolute;
+    top: 15px;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    gap: 10px;
+}
+
+.hud-item {
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    padding: 10px 15px;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+.timer-box {
+    min-width: 90px;
+}
+
+.energy-container {
+    flex: 1;
+    max-width: 500px;
+    margin: 0 10px;
+}
+
+.energy-bar-bg {
+    width: 100%;
+    height: 16px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.energy-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4db6ac, #81c784);
+    transition: width 0.3s ease;
+}
+
+.points-box {
+    background: linear-gradient(135deg, #ffca28, #ffa000);
+    font-weight: bold;
+    min-width: 70px;
+    color: white;
+    box-shadow: 0 4px 10px rgba(255, 160, 0, 0.3);
+}
+
+.character-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    pointer-events: none;
+    width: 100%;
+}
+
+#main-character-img {
+    position: absolute;
+    bottom: -5%;
+    left: 50%;
+    transform: translateX(-50%);
+    height: 80vh;
+    max-width: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 15px 10px rgba(0, 0, 0, 0.3));
+    transition: transform 0.5s ease, opacity 0.5s ease;
+    z-index: 5;
+    transform-origin: bottom center;
+}
+
+.character-layer::after {
+    content: "";
+    position: absolute;
+    bottom: 3%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 250px;
+    height: 40px;
+    background: radial-gradient(rgba(0, 0, 0, 0.4), transparent 70%);
+    filter: blur(8px);
+    border-radius: 50%;
+    z-index: 4;
+}
+
+/* --- [คงเดิม] Status Group & Reset Button --- */
+.status-group {
+    position: absolute;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    z-index: 100;
+    pointer-events: auto;
+    width: 100%;
+}
+
+#status-msg {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 6px 20px;         /* ลด padding ลงเล็กน้อยไม่ให้ป้ายใหญ่เกินไป */
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 0.9rem;         /* ปรับขนาดตัวอักษรให้พอดี */
+    color: #4db6ac;
+    border: 2px solid #b2dfdb; /* ใช้สีขอบที่อ่อนลงเพื่อให้ดูนุ่มนวลเข้ากับสีฟ้า */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    white-space: nowrap;
+    max-width: fit-content;
+
+    /* ส่วนสำคัญ: การจัดตำแหน่ง */
+    position: relative; 
+    margin: 12px auto 0;       /* ดันระยะห่างจากแถบพลังงานด้านบน 12px และจัดกึ่งกลาง */
+    z-index: 5;
+    display: flex;             /* ช่วยให้จัดเรียง Icon กับ Text ข้างในได้นิ่งขึ้น */
+    align-items: center;
+    gap: 5px;
+}
+
+#reset-btn {
+    display: none;
+    background-color: #ff4d8d;
+    color: white;
+    padding: 10px 25px;
+    border-radius: 50px;
+    border: none;
+    font-weight: bold;
+    font-family: 'Kanit';
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(255, 77, 141, 0.4);
+}
+
+#reset-btn:hover {
+    background-color: #ff1e70;
+    transform: scale(1.05);
+}
+
+#reset-btn:active {
+    transform: scale(0.95);
+}
+
+/* --- 4. [คงเดิม] Bottom Nav --- */
+.bottom-nav {
+    position: absolute;
+    bottom: 25px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 20;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 25px;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    pointer-events: auto;
+}
+
+#student-name-display {
+    padding: 5px 15px;
+    font-weight: 600;
+    color: #37474f;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#student-name-display::before {
+    content: "🎓";
+}
+
+.nav-buttons-group {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-action {
+    border: none;
+    padding: 10px 18px;
+    border-radius: 18px;
+    color: white;
+    cursor: pointer;
+    font-weight: 600;
+    font-family: 'Kanit';
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.btn-action:active {
+    transform: scale(0.95);
+}
+
+.btn-action.shop {
+    background: linear-gradient(135deg, #4db6ac, #26a69a);
+}
+
+.btn-action.redeem {
+    background: linear-gradient(135deg, #ff80ab, #f50057);
+}
+
+/* --- 5. [คงเดิม] Shop & Modal Systems --- */
+.modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(8px);
+    padding: 10px;
+}
+
+.modal-content {
+    background: white;
+    width: 100%;
+    max-width: 700px;
+    max-height: 90vh;
+    border-radius: 30px;
+    padding: 20px;
+    border: 4px solid #4db6ac;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+    flex-shrink: 0;
+}
+
+.shop-tabs {
+    display: flex;
+    gap: 5px;
+}
+
+.tab-btn {
+    padding: 6px 12px;
+    border: none;
+    background: #f0f0f0;
+    border-radius: 20px;
+    cursor: pointer;
+    font-family: 'Kanit';
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.tab-btn.active {
+    background: #4db6ac;
+    color: white;
+}
+
+.points-badge {
+    background: #fff8e1;
+    padding: 5px 12px;
+    border-radius: 15px;
+    color: #ffa000;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.shop-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin: 10px 0;
+    flex-grow: 1;
+}
+
+.preview-area {
+    background: #f8f9fa;
+    border-radius: 20px;
+    padding: 10px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.preview-card img {
+    max-height: 180px;
+    width: 100%;
+    object-fit: contain;
+}
+
+.items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 250px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+.items-list::-webkit-scrollbar {
+    width: 5px;
+}
+
+.items-list::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 10px;
+}
+
+.item-card {
+    background: white;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 2px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.item-card:hover {
+    border-color: #4db6ac;
+}
+
+.modal-footer {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+    flex-shrink: 0;
+}
+
+.btn-buy {
+    flex: 2;
+    background: #4db6ac;
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 15px;
+    font-weight: bold;
+    font-family: 'Kanit';
+    cursor: pointer;
+}
+
+.btn-close-modal {
+    flex: 1;
+    background: #eee;
+    border: none;
+    padding: 12px;
+    border-radius: 15px;
+    cursor: pointer;
+}
+
+/* --- [คงเดิม] Redeem Grid --- */
+.redeem-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.btn-redeem-item {
+    padding: 20px 10px;
+    border-radius: 20px;
+    border: none;
+    cursor: pointer;
+    font-family: 'Kanit';
+    text-align: center;
+    transition: 0.3s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-redeem-small {
+    background: #fce4ec;
+    color: #ad1457;
+    border: 2px solid #f8bbd0;
+}
+
+.btn-redeem-large {
+    background: #f3e5f5;
+    color: #6a1b9a;
+    border: 2px solid #e1bee7;
+}
+
+.btn-redeem-item:hover:not(:disabled) {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.btn-redeem-item:disabled {
+    background: #eee;
+    color: #999;
+    border-color: #ddd;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.redeem-price {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+/* --- [คงเดิม] ANIMATIONS --- */
+@keyframes breathing {
+    0% {
+        transform: translateX(-50%) scale(1);
+    }
+
+    50% {
+        transform: translateX(-50%) scale(1.02) translateY(-5px);
+    }
+
+    100% {
+        transform: translateX(-50%) scale(1);
+    }
+}
+
+.character-breathing {
+    animation: breathing 4s ease-in-out infinite;
+    transform-origin: bottom center;
+}
+
+/* --- [คงเดิม] Responsive Balance (รวมส่วนจัดการวิดีโอ) --- */
+@media (max-width: 600px) {
+
+    .lobby-container,
+    .setup-container {
+        width: 95% !important;
+        margin: auto;
+    }
+
+    .bottom-nav {
+        width: 95%;
+        padding: 6px 10px;
+        bottom: 15px;
+        border-radius: 20px;
+    }
+
+    #student-name-display {
+        font-size: 0.85rem;
+        padding: 5px 8px;
+    }
+
+    .btn-action {
+        padding: 8px 12px;
+        font-size: 0.75rem;
+        border-radius: 14px;
+        gap: 4px;
+    }
+
+    .shop-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .preview-area {
+        order: -1;
+        margin-bottom: 10px;
+    }
+
+    .preview-card img {
+        max-height: 140px;
+    }
+
+    .modal-content {
+        padding: 15px;
+        width: 95%;
+    }
+
+    .top-hud {
+        padding: 0 10px;
+    }
+
+    .energy-container {
+        margin: 0 5px;
+        min-width: 80px;
+    }
+
+    .hud-item {
+        padding: 6px 10px;
+        font-size: 0.75rem;
+    }
+
+    .action-group {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .btn-delete-admin {
+        padding: 6px 8px;
+        font-size: 11px;
+    }
+
+    /* ส่วนจัดการวิดีโอบนมือถือ */
+    #login-bg-video {
+        filter: brightness(0.3) blur(2px);
+        /* เบลอวิดีโอบนมือถือเพื่อความอ่านง่าย */
+        object-position: center;
+        /* บังคับให้ส่วนกลางวิดีโออยู่กลางจอ */
+    }
+}
