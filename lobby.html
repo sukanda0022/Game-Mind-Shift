@@ -114,7 +114,7 @@
 
         #reset-btn {
             display: none;
-            margin: 10px auto;
+            margin: 0 auto;
             padding: 12px 25px;
             background-color: #ff4d8d;
             color: white;
@@ -166,7 +166,7 @@
             font-size: 1.1rem;
         }
 
-        /* --- ✨ HUD Action Group ✨ --- */
+        /* --- ✨ ส่วนที่เพิ่มใหม่: สไตล์ปุ่มใต้เพชร ✨ --- */
         .hud-action-group {
             display: flex;
             flex-direction: column;
@@ -197,28 +197,6 @@
 
         .btn-hud-small:hover { transform: scale(1.05); filter: brightness(1.1); }
         .btn-hud-small:active { transform: scale(0.95); }
-
-        /* --- ✨ โหมดสมาธิปุ่มกด (Style เฉพาะ) ✨ --- */
-        #focus-btn {
-            display: block;
-            margin: 10px auto;
-            padding: 12px 20px;
-            background: #ff9800;
-            border: none;
-            border-radius: 15px;
-            color: white;
-            font-family: 'Kanit', sans-serif;
-            font-weight: bold;
-            cursor: pointer;
-            box-shadow: 0 4px 10px rgba(255, 152, 0, 0.4);
-            transition: 0.3s;
-            z-index: 101;
-        }
-
-        #focus-btn.active {
-            background: #4caf50;
-            box-shadow: 0 4px 10px rgba(76, 175, 80, 0.4);
-        }
     </style>
 </head>
 
@@ -277,11 +255,6 @@
         <div class="character-layer">
             <div class="status-group">
                 <div id="status-msg">กำลังใช้สมาธิ... ✨</div>
-                
-                <button onclick="toggleFocusMode()" id="focus-btn">
-                    🔒 เริ่มโหมดสมาธิ (กดก่อนปิดจอ)
-                </button>
-
                 <button id="reset-btn" onclick="window.restartSession()">🔄 เริ่มรอบใหม่</button>
             </div>
             <img id="main-character-img" src="images/girl_1.png" alt="Character">
@@ -382,20 +355,6 @@
             document.getElementById('redeem-modal').style.display = 'none';
         }
 
-        // ฟังก์ชันอัปเดตสถานะปุ่ม Focus (เรียกจากภายนอก)
-        window.toggleFocusModeUI = (isActive) => {
-            const btn = document.getElementById('focus-btn');
-            if (btn) {
-                if (isActive) {
-                    btn.classList.add('active');
-                    btn.innerText = "🔓 ปิดโหมดสมาธิ";
-                } else {
-                    btn.classList.remove('active');
-                    btn.innerText = "🔒 เริ่มโหมดสมาธิ (กดก่อนปิดจอ)";
-                }
-            }
-        };
-
         document.addEventListener('click', (e) => {
             if (e.target.closest('button')) playSfx('tap');
         });
@@ -406,8 +365,10 @@
             if (document.getElementById('student-name-display')) document.getElementById('student-name-display').textContent = savedName;
         });
 
+        // --- ✨ ส่วนที่เพิ่มเข้าไปเพื่อแก้ปัญหา "ลบแล้วเด้งกลับไม่ได้" ✨ ---
+        // ฟังก์ชันนี้จะคอยเช็ค LocalStorage ถ้าโดนสั่งล้างจาก Logic หลัก ให้เด้งกลับหน้า Login ทันที
         window.addEventListener('storage', (e) => {
-            if (e.key === null) {
+            if (e.key === null) { // กรณีโดน localStorage.clear()
                 window.location.href = 'index.html';
             }
         });
