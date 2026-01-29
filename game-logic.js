@@ -36,7 +36,7 @@ const playSound = (soundKey) => {
     }
 };
 
-// --- 1. ตัวแปรสถานะ game ---
+// --- 1. ตัวแปรสถานะเกม ---
 export let score = 0;
 export let currentSkin = "default";
 export let currentBG = "classroom.jpg";
@@ -54,7 +54,7 @@ let tabSwitchCount = 0;
 let totalFocusSeconds = 0;
 let gameInterval = null;
 
-// ตัวแปรพิเศษ
+// ตัวแปรพิเศษสำหรับระบบ Detection
 let lastBlurTime = 0;
 let isActuallySwitched = false;
 
@@ -70,46 +70,6 @@ async function updateOnlineStatus(status) {
     } catch (error) {
         console.error("Error updating status:", error);
     }
-}
-
-// --- [แก้ไขใหญ่] ระบบคำนวณเวลาและพลังงานเมื่อกลับมา ---
-function handleBackgroundTime() {
-    if (hasFailedPeriod || isBreakMode || !gameInterval) return;
-
-    const lastExit = localStorage.getItem("lastExitTime");
-    if (lastExit && lastExit !== "undefined") {
-        const currentTime = Date.now();
-        const diffSeconds = Math.floor((currentTime - parseFloat(lastExit)) / 1000);
-
-        if (diffSeconds > 0) {
-            // หักเวลาที่เหลืออยู่ตามจริง
-            timeLeft = Math.max(0, timeLeft - diffSeconds);
-
-            // 🛠️ ตรวจสอบด้วย Logic ที่คุณต้องการ:
-            // ถ้า isActuallySwitched เป็น true (หายไปเร็วมาก < 0.8 วิ) = สลับแอปแน่ๆ
-            if (isActuallySwitched) {
-                // กรณีสลับแอป -> หักพลังงาน (วินาทีละ 2%)
-                const energyLost = diffSeconds * 2.0; 
-                periodEnergy = Math.max(0, periodEnergy - energyLost);
-            } else {
-                // กรณีจอดับ (หายไปช้ากว่า 0.8 วิ) -> ไม่หักพลังงาน และนับเป็นเวลาเรียน
-                totalFocusSeconds += diffSeconds;
-                // เพิ่มพลังงานคืนให้เล็กน้อยเหมือนตอนเปิดจอปกติ
-                periodEnergy = Math.min(100, periodEnergy + (diffSeconds * 0.1));
-            }
-
-            updateUI();
-            updateImage();
-
-            if (periodEnergy <= 0) {
-                periodEnergy = 0;
-                handleEnergyDepleted();
-            }
-        }
-        localStorage.removeItem("lastExitTime");
-    }
-    // รีเซ็ตสถานะ
-    isActuallySwitched = false;
 }
 
 // --- 3. ระบบจัดการเลเวล ---
@@ -262,7 +222,6 @@ function startGameLoop() {
             timeLeft--;
             if (!isBreakMode) {
                 totalFocusSeconds++;
-                // 🟢 ค้างหน้าจอไว้ พลังงานค่อยๆ เพิ่มคืนให้ (ไม่ต้องแตะจอ)
                 if (periodEnergy < 100) periodEnergy += 0.3;
             }
             updateUI();
@@ -272,36 +231,69 @@ function startGameLoop() {
     }, 1000);
 }
 
-// ✨ [ส่วนแก้ไข: การตรวจจับที่แม่นยำขึ้น]
+// --- [ส่วนที่แก้ไขใหม่: ตัดสินเจตนาทันทีที่หายไป และคำนวณย้อนหลัง] ---
+
 window.addEventListener('blur', () => {
     lastBlurTime = Date.now();
 });
 
 document.addEventListener('visibilitychange', () => {
+    const now = Date.now();
+    
     if (document.hidden) {
+        // --- จังหวะที่หน้าจอหายวับไป ---
         isSleeping = true;
-        localStorage.setItem("lastExitTime", Date.now().toString());
+        localStorage.setItem("lastExitTime", now.toString());
         
-        const timeSinceBlur = Date.now() - lastBlurTime;
+        const timeSinceBlur = now - lastBlurTime;
         
-        // ⚡️ Logic แยกแยะ:
-        // ถ้าวินาทีที่หายไประหว่าง Blur กับ Hidden < 800ms (0.8 วิ) = "สลับแอป"
-        // ถ้าหายไปช้ากว่า 0.8 วิ = "ปิดจอ/Power" เพราะ OS ใช้เวลาเตรียมจอดับนานกว่าการปัดแอป
-        if (timeSinceBlur < 800) { 
+        // ⚡️ หัวใจหลัก: 
+        // ถ้า timeSinceBlur น้อยกว่า 600ms (0.6 วิ) = "ปัดจอ" แน่นอน (บัญชีดำ)
+        if (timeSinceBlur < 600) { 
             isActuallySwitched = true; 
             tabSwitchCount++;
             updateOnlineStatus("สลับแอป");
-        } else {
+        } 
+        // ถ้ามากกว่า 0.6 วิ = "ปิดจอ" (บัญชีขาว)
+        else {
             isActuallySwitched = false;
             updateOnlineStatus("ออนไลน์ (ปิดจอ)");
         }
         updateImage();
+        
     } else {
+        // --- จังหวะที่กลับมาที่แอป ---
         isSleeping = false;
-        // ⚡️ คำนวณความเสียหายย้อนหลัง (ถ้ามี)
-        handleBackgroundTime(); 
+        
+        // ดึงเวลาที่หายไปมาคำนวณ
+        const lastExit = localStorage.getItem("lastExitTime");
+        if (lastExit && lastExit !== "undefined" && !hasFailedPeriod && !isBreakMode && gameInterval) {
+            const diffSeconds = Math.floor((Date.now() - parseFloat(lastExit)) / 1000);
+            
+            if (diffSeconds > 0) {
+                // หักเวลาที่เหลืออยู่ตามจริง
+                timeLeft = Math.max(0, timeLeft - diffSeconds);
+
+                // 🛑 เช็คจาก "สถานะที่จดไว้ตอนออก" (ต่อให้ไปนานแค่ไหน ก็ตัดสินตามเจตนาตอนแรก)
+                if (isActuallySwitched) {
+                    // ถ้าโดนจดว่าสลับแอป -> หักพลังงานยับเยินตามเวลาที่หายไป
+                    const energyPenalty = diffSeconds * 2.0; 
+                    periodEnergy = Math.max(0, periodEnergy - energyPenalty);
+                } else {
+                    // ถ้าโดนจดว่าปิดจอ -> ให้คะแนนความพยายาม (Focus)
+                    totalFocusSeconds += diffSeconds;
+                    periodEnergy = Math.min(100, periodEnergy + (diffSeconds * 0.1));
+                }
+            }
+        }
+        
+        localStorage.removeItem("lastExitTime");
+        isActuallySwitched = false; // รีเซ็ตค่าเตรียมรอครั้งต่อไป
         updateImage();
+        updateUI();
         updateOnlineStatus("online");
+
+        if (periodEnergy <= 0) handleEnergyDepleted();
     }
 });
 
@@ -451,10 +443,6 @@ window.processRedeem = async (cost) => {
 export function updatePointsUI() {
     const ids = ['pts', 'lobby-pts', 'shop-pts-balance', 'current-points', 'points-display'];
     ids.forEach(id => { const el = document.getElementById(id); if (el) el.innerText = score; });
-    const btn50 = document.querySelector('.btn-redeem-small');
-    const btn100 = document.querySelector('.btn-redeem-large');
-    if(btn50) btn50.disabled = (score < 50);
-    if(btn100) btn100.disabled = (score < 100);
 }
 
 initGame();
