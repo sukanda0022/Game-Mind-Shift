@@ -54,9 +54,24 @@ let tabSwitchCount = 0;
 let totalFocusSeconds = 0;
 let gameInterval = null;
 
-// ตัวแปรพิเศษสำหรับระบบ Detection
-let lastBlurTime = 0;
+// ✨ [ตัวแปรพิเศษสำหรับระบบ Touch Guard Detection]
+let edgeTouched = false;
 let isActuallySwitched = false;
+
+// --- สร้างแถบตรวจจับล่องหน (Invisible Touch Guard) ---
+const touchGuard = document.createElement('div');
+Object.assign(touchGuard.style, {
+    position: 'fixed', bottom: '0', left: '0', width: '100%', height: '45px',
+    zIndex: '999999', pointerEvents: 'auto', background: 'transparent'
+});
+document.body.appendChild(touchGuard);
+
+// ดักจับการปัดขอบจอล่าง
+touchGuard.addEventListener('touchstart', () => {
+    edgeTouched = true;
+    // ถ้าแค่แตะโดนแต่ไม่ได้ออกจากแอปใน 1 วิ ให้ล้างค่า
+    setTimeout(() => { if (!document.hidden) edgeTouched = false; }, 1000);
+});
 
 // ✨ [อัปเดตสถานะไปยัง Firebase]
 async function updateOnlineStatus(status) {
@@ -231,32 +246,23 @@ function startGameLoop() {
     }, 1000);
 }
 
-// --- [ส่วนที่แก้ไขใหม่: ตัดสินเจตนาทันทีที่หายไป และคำนวณย้อนหลัง] ---
-
-window.addEventListener('blur', () => {
-    lastBlurTime = Date.now();
-});
+// ✨ [ปรับปรุงระบบ Detection: ใช้ Touch แทนการเช็คเวลา]
 
 document.addEventListener('visibilitychange', () => {
     const now = Date.now();
     
     if (document.hidden) {
-        // --- จังหวะที่หน้าจอหายวับไป ---
+        // --- จังหวะที่หน้าจอหายไป ---
         isSleeping = true;
         localStorage.setItem("lastExitTime", now.toString());
         
-        const timeSinceBlur = now - lastBlurTime;
+        // 🔍 ตัดสินเจตนา: ถ้า "ปัดขอบจอ" ก่อนจอหาย = สลับแอป
+        isActuallySwitched = edgeTouched; 
         
-        // ⚡️ หัวใจหลัก: 
-        // ถ้า timeSinceBlur น้อยกว่า 600ms (0.6 วิ) = "ปัดจอ" แน่นอน (บัญชีดำ)
-        if (timeSinceBlur < 600) { 
-            isActuallySwitched = true; 
+        if (isActuallySwitched) {
             tabSwitchCount++;
             updateOnlineStatus("สลับแอป");
-        } 
-        // ถ้ามากกว่า 0.6 วิ = "ปิดจอ" (บัญชีขาว)
-        else {
-            isActuallySwitched = false;
+        } else {
             updateOnlineStatus("ออนไลน์ (ปิดจอ)");
         }
         updateImage();
@@ -264,23 +270,21 @@ document.addEventListener('visibilitychange', () => {
     } else {
         // --- จังหวะที่กลับมาที่แอป ---
         isSleeping = false;
+        edgeTouched = false; // รีเซ็ตสัมผัสขอบ
         
-        // ดึงเวลาที่หายไปมาคำนวณ
         const lastExit = localStorage.getItem("lastExitTime");
         if (lastExit && lastExit !== "undefined" && !hasFailedPeriod && !isBreakMode && gameInterval) {
             const diffSeconds = Math.floor((Date.now() - parseFloat(lastExit)) / 1000);
             
             if (diffSeconds > 0) {
-                // หักเวลาที่เหลืออยู่ตามจริง
                 timeLeft = Math.max(0, timeLeft - diffSeconds);
 
-                // 🛑 เช็คจาก "สถานะที่จดไว้ตอนออก" (ต่อให้ไปนานแค่ไหน ก็ตัดสินตามเจตนาตอนแรก)
                 if (isActuallySwitched) {
-                    // ถ้าโดนจดว่าสลับแอป -> หักพลังงานยับเยินตามเวลาที่หายไป
+                    // ปัดไปเล่นแอปอื่น -> หักพลังงาน
                     const energyPenalty = diffSeconds * 2.0; 
                     periodEnergy = Math.max(0, periodEnergy - energyPenalty);
                 } else {
-                    // ถ้าโดนจดว่าปิดจอ -> ให้คะแนนความพยายาม (Focus)
+                    // ปิดจอไปเรียนจริงๆ -> ได้แต้มสมาธิ
                     totalFocusSeconds += diffSeconds;
                     periodEnergy = Math.min(100, periodEnergy + (diffSeconds * 0.1));
                 }
@@ -288,7 +292,7 @@ document.addEventListener('visibilitychange', () => {
         }
         
         localStorage.removeItem("lastExitTime");
-        isActuallySwitched = false; // รีเซ็ตค่าเตรียมรอครั้งต่อไป
+        isActuallySwitched = false; 
         updateImage();
         updateUI();
         updateOnlineStatus("online");
