@@ -54,12 +54,25 @@ let tabSwitchCount = 0;
 let totalFocusSeconds = 0;
 let gameInterval = null;
 
-// ✨ [ตัวแปรพิเศษระบบโหมดสมาธิ & ดักโกง]
+// ✨ [ระบบดักโกงขั้นเด็ดขาด]
+let focusModeActive = false;
 let isActuallySwitched = false;
-let focusModeActive = false; 
-let lastHeartbeat = Date.now(); // ใช้ดัก Time Drift
+let lastFrameTime = Date.now();
+let frameCountDuringHidden = 0;
 
-// --- ฟังก์ชันเปิด/ปิดโหมดสมาธิ (Manual Focus) ---
+// ฟังก์ชันนับเฟรม (จะหยุดทำงานทันทีที่ปิดจอจริงบนมือถือส่วนใหญ่)
+function trackFrames() {
+    if (document.hidden) {
+        frameCountDuringHidden++;
+    } else {
+        frameCountDuringHidden = 0;
+    }
+    lastFrameTime = Date.now();
+    requestAnimationFrame(trackFrames);
+}
+requestAnimationFrame(trackFrames);
+
+// --- ฟังก์ชันเปิด/ปิดโหมดสมาธิ ---
 window.toggleFocusMode = () => {
     if (isBreakMode || hasFailedPeriod) return;
     
@@ -73,7 +86,6 @@ window.toggleFocusMode = () => {
         msg.innerText = focusModeActive ? "โหมดสมาธิ: ปิดจอเรียนได้เลย 🔒" : "กำลังใช้สมาธิ... ✨";
         msg.style.color = focusModeActive ? "#ff9800" : "#4db6ac";
     }
-    
     updateImage();
 };
 
@@ -173,16 +185,16 @@ async function saveUserData() {
 
 // --- 7. ฟังก์ชันจัดการหน้าจอ ---
 function showScreen(screenId) {
-    document.getElementById('lobby-screen').style.setProperty('display', 'none', 'important');
-    document.getElementById('setup-screen').style.setProperty('display', 'none', 'important');
-    document.getElementById('main-game-area').style.display = 'none';
-
-    if (screenId === 'game') {
-        document.getElementById('main-game-area').style.display = 'block';
-    } else {
-        const target = document.getElementById(screenId);
-        if (target) target.style.setProperty('display', 'flex', 'important');
-    }
+    const screens = ['lobby-screen', 'setup-screen', 'main-game-area'];
+    screens.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (id === 'main-game-area') {
+            el.style.display = (screenId === 'game') ? 'block' : 'none';
+        } else {
+            el.style.setProperty('display', (id === screenId) ? 'flex' : 'none', 'important');
+        }
+    });
 }
 
 window.showSetup = () => { playSound('tap'); showScreen('setup-screen'); };
@@ -238,10 +250,6 @@ function startGameLoop() {
     if (gameInterval) clearInterval(gameInterval);
     gameInterval = setInterval(async () => {
         if (hasFailedPeriod) return;
-
-        // Heartbeat สำหรับดัก Time Drift
-        lastHeartbeat = Date.now();
-
         if (timeLeft > 0) {
             timeLeft--;
             if (!isBreakMode) {
@@ -255,16 +263,15 @@ function startGameLoop() {
     }, 1000);
 }
 
-// ✨ [ระบบ Detection ขั้นสูง: ตรวจสอบ Time Drift เพื่อแยกแยะ "ปิดจอ" กับ "สลับแอป"]
-
+// 🛡️ [Visibility Logic: แยกแยะปิดจอ VS สลับแอปด้วย Frame Tracking]
 document.addEventListener('visibilitychange', () => {
     const now = Date.now();
     
     if (document.hidden) {
         isSleeping = true;
+        frameCountDuringHidden = 0; 
         localStorage.setItem("lastExitTime", now.toString());
         
-        // ถ้าไม่ได้กดโหมดสมาธิแต่หายไป = สลับแอปแน่นอน
         if (!focusModeActive) {
             isActuallySwitched = true;
             tabSwitchCount++;
@@ -279,34 +286,28 @@ document.addEventListener('visibilitychange', () => {
         const lastExit = localStorage.getItem("lastExitTime");
         
         if (lastExit && lastExit !== "undefined" && !hasFailedPeriod && !isBreakMode && gameInterval) {
-            const actualDiff = Math.floor((now - parseFloat(lastExit)) / 1000);
-            const heartbeatDiff = Math.floor((now - lastHeartbeat) / 1000);
-
-            // 🔍 Logic ดักโกง:
-            // ถ้าปิดจอจริง: JS จะหยุดรัน heartbeatDiff จะต้องมีค่าใกล้เคียงกับ actualDiff
-            // ถ้าสลับแอปแต่ไม่ปิดจอ: ในหลายรุ่น JS ยังรันต่อ หรือ Heartbeat เพิ่งรันไปเมื่อกี้
-            // เราเช็คว่าถ้า heartbeatDiff น้อยกว่า actualDiff อย่างมีนัยสำคัญ (และหายไปนานเกิน 3 วิ)
+            const timeDiff = Math.floor((now - parseFloat(lastExit)) / 1000);
             
-            if (focusModeActive && actualDiff > 3) {
-                // ถ้าหายไป 10 วิ แต่ Heartbeat ล่าสุดเพิ่งผ่านมาแค่ 1-2 วิ 
-                // แสดงว่า CPU ไม่ได้ถูก Freeze (ไม่ได้ล็อคจอจริง แต่แค่สลับแอป)
-                if (heartbeatDiff < actualDiff - 2) {
+            // 🔎 เช็คความจริงผ่าน Frame Count
+            if (focusModeActive) {
+                // ถ้าหายไปนาน (เช่น 5 วินาทีขึ้นไป) แต่ Frame ยังรันเกิน 15 เฟรม 
+                // แสดงว่า CPU ไม่ได้หยุดทำงาน (ไม่ได้ Lock Screen จริงๆ)
+                if (timeDiff > 5 && frameCountDuringHidden > 15) { 
                     isActuallySwitched = true;
                 }
             }
 
-            if (actualDiff > 0) {
-                timeLeft = Math.max(0, timeLeft - actualDiff);
+            if (timeDiff > 0) {
+                timeLeft = Math.max(0, timeLeft - timeDiff);
 
                 if (isActuallySwitched) {
-                    // ลงโทษคนสลับแอป: หักพลังงาน x5 และโชว์ Alert
-                    const energyPenalty = actualDiff * 5.0; 
+                    tabSwitchCount++;
+                    const energyPenalty = timeDiff * 5.0; // ลงโทษโหด x5
                     periodEnergy = Math.max(0, periodEnergy - energyPenalty);
-                    alert(`⚠️ ตรวจพบการสลับแอป! พลังงานลดลงอย่างรวดเร็ว`);
-                } else {
-                    // คนปิดจอจริง: ได้แต้มโบนัสเล็กน้อย
-                    totalFocusSeconds += actualDiff;
-                    periodEnergy = Math.min(100, periodEnergy + (actualDiff * 0.1));
+                    alert("⚠️ ตรวจพบการแอบใช้งานแอปอื่น! พลังงานลดลงอย่างรวดเร็ว");
+                } else if (focusModeActive) {
+                    totalFocusSeconds += timeDiff;
+                    periodEnergy = Math.min(100, periodEnergy + (timeDiff * 0.1));
                 }
             }
         }
@@ -325,7 +326,7 @@ document.addEventListener('visibilitychange', () => {
         updateUI();
         updateOnlineStatus("online");
 
-        if (periodEnergy <= 0 || wasCheating && periodEnergy < 10) handleEnergyDepleted();
+        if (periodEnergy <= 0) handleEnergyDepleted();
     }
 });
 
@@ -341,7 +342,7 @@ async function handleEnergyDepleted() {
         const resetBtn = document.getElementById('reset-btn');
         if (resetBtn) resetBtn.style.display = "block";
         
-        if (score >= 5) score -= 5; else score = 0;
+        score = Math.max(0, score - 5);
         await saveUserData();
         updatePointsUI();
         updateImage();
@@ -416,6 +417,7 @@ function showFinalSummary() {
     alert(`🏁 จบการเรียนวันนี้!\n- โฟกัสเฉลี่ย: ${avgFocus.toFixed(2)}%\n- สลับหน้าจอรวม: ${tabSwitchCount} ครั้ง\n- แต้มปัจจุบัน: ${score} 💎`);
 }
 
+// --- [Shop & Reward System] ---
 window.openShop = () => { playSound('tap'); updatePointsUI(); document.getElementById('shop-modal').style.display = 'flex'; switchShopTab('skins'); };
 window.closeShop = () => { playSound('tap'); document.getElementById('shop-modal').style.display = 'none'; };
 
