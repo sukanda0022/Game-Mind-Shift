@@ -54,25 +54,28 @@ let tabSwitchCount = 0;
 let totalFocusSeconds = 0;
 let gameInterval = null;
 
-// ✨ [ตัวแปรพิเศษสำหรับระบบ Touch Guard Detection]
-let edgeTouched = false;
+// ✨ [ตัวแปรพิเศษระบบโหมดสมาธิ & ดักโกง]
 let isActuallySwitched = false;
+let focusModeActive = false; 
+let lastHeartbeat = Date.now(); // ใช้ดัก Time Drift
 
-// --- สร้างแถบตรวจจับล่องหน (Invisible Touch Guard) ---
-const touchGuard = document.createElement('div');
-// ค้นหาบรรทัดนี้ในโค้ดแล้วแก้เลขครับ
-Object.assign(touchGuard.style, {
-    position: 'fixed', bottom: '0', left: '0', width: '100%', height: '80px', // เพิ่มความสูงให้โดนนิ้วง่ายขึ้น
-    zIndex: '999999', pointerEvents: 'auto', background: 'transparent'
-});
-document.body.appendChild(touchGuard);
-
-// ดักจับการปัดขอบจอล่าง
-touchGuard.addEventListener('touchstart', () => {
-    edgeTouched = true;
-    // ถ้าแค่แตะโดนแต่ไม่ได้ออกจากแอปใน 1 วิ ให้ล้างค่า
-    setTimeout(() => { if (!document.hidden) edgeTouched = false; }, 1000);
-});
+// --- ฟังก์ชันเปิด/ปิดโหมดสมาธิ (Manual Focus) ---
+window.toggleFocusMode = () => {
+    if (isBreakMode || hasFailedPeriod) return;
+    
+    focusModeActive = !focusModeActive;
+    playSound(focusModeActive ? 'confirm' : 'tap');
+    
+    if (window.toggleFocusModeUI) window.toggleFocusModeUI(focusModeActive);
+    
+    const msg = document.getElementById('status-msg');
+    if (msg) {
+        msg.innerText = focusModeActive ? "โหมดสมาธิ: ปิดจอเรียนได้เลย 🔒" : "กำลังใช้สมาธิ... ✨";
+        msg.style.color = focusModeActive ? "#ff9800" : "#4db6ac";
+    }
+    
+    updateImage();
+};
 
 // ✨ [อัปเดตสถานะไปยัง Firebase]
 async function updateOnlineStatus(status) {
@@ -108,7 +111,7 @@ export function updateImage() {
     if (hasFailedPeriod) {
         fileName = (lv === '1') ? `${userAvatar}_fail1.png` : `${userAvatar}_${lv}_fail.png`;
     }
-    else if (isSleeping || periodEnergy <= 30) {
+    else if (isSleeping || focusModeActive || periodEnergy <= 30) {
         fileName = `${userAvatar}_sleep${lv}.png`;
     }
     else if (isBreakMode) {
@@ -153,7 +156,7 @@ async function saveUserData() {
             points: score,
             currentSkin: currentSkin,
             currentBG: currentBG,
-            status: isSleeping ? (isActuallySwitched ? "สลับแอป" : "ออนไลน์ (ปิดจอ)") : "online",
+            status: isActuallySwitched ? "แอบสลับแอป!" : (focusModeActive ? "ออนไลน์ (ปิดจอ)" : "online"),
             lastSeen: timestamp,
             stats: {
                 focusSeconds: totalFocusSeconds,
@@ -193,6 +196,7 @@ window.selectDuration = (totalMinutes) => {
     timeLeft = 1800;
     periodEnergy = 100;
     hasFailedPeriod = false;
+    focusModeActive = false;
     showScreen('game');
     startGameLoop();
     updateUI();
@@ -234,6 +238,10 @@ function startGameLoop() {
     if (gameInterval) clearInterval(gameInterval);
     gameInterval = setInterval(async () => {
         if (hasFailedPeriod) return;
+
+        // Heartbeat สำหรับดัก Time Drift
+        lastHeartbeat = Date.now();
+
         if (timeLeft > 0) {
             timeLeft--;
             if (!isBreakMode) {
@@ -247,69 +255,92 @@ function startGameLoop() {
     }, 1000);
 }
 
-// ✨ [ปรับปรุงระบบ Detection: ใช้ Touch แทนการเช็คเวลา]
+// ✨ [ระบบ Detection ขั้นสูง: ตรวจสอบ Time Drift เพื่อแยกแยะ "ปิดจอ" กับ "สลับแอป"]
 
 document.addEventListener('visibilitychange', () => {
     const now = Date.now();
     
     if (document.hidden) {
-        // --- จังหวะที่หน้าจอหายไป ---
         isSleeping = true;
         localStorage.setItem("lastExitTime", now.toString());
         
-        // 🔍 ตัดสินเจตนา: ถ้า "ปัดขอบจอ" ก่อนจอหาย = สลับแอป
-        isActuallySwitched = edgeTouched; 
-        
-        if (isActuallySwitched) {
+        // ถ้าไม่ได้กดโหมดสมาธิแต่หายไป = สลับแอปแน่นอน
+        if (!focusModeActive) {
+            isActuallySwitched = true;
             tabSwitchCount++;
-            updateOnlineStatus("สลับแอป");
+            updateOnlineStatus("แอบสลับแอป!");
         } else {
             updateOnlineStatus("ออนไลน์ (ปิดจอ)");
         }
         updateImage();
         
     } else {
-        // --- จังหวะที่กลับมาที่แอป ---
         isSleeping = false;
-        edgeTouched = false; // รีเซ็ตสัมผัสขอบ
-        
         const lastExit = localStorage.getItem("lastExitTime");
+        
         if (lastExit && lastExit !== "undefined" && !hasFailedPeriod && !isBreakMode && gameInterval) {
-            const diffSeconds = Math.floor((Date.now() - parseFloat(lastExit)) / 1000);
+            const actualDiff = Math.floor((now - parseFloat(lastExit)) / 1000);
+            const heartbeatDiff = Math.floor((now - lastHeartbeat) / 1000);
+
+            // 🔍 Logic ดักโกง:
+            // ถ้าปิดจอจริง: JS จะหยุดรัน heartbeatDiff จะต้องมีค่าใกล้เคียงกับ actualDiff
+            // ถ้าสลับแอปแต่ไม่ปิดจอ: ในหลายรุ่น JS ยังรันต่อ หรือ Heartbeat เพิ่งรันไปเมื่อกี้
+            // เราเช็คว่าถ้า heartbeatDiff น้อยกว่า actualDiff อย่างมีนัยสำคัญ (และหายไปนานเกิน 3 วิ)
             
-            if (diffSeconds > 0) {
-                timeLeft = Math.max(0, timeLeft - diffSeconds);
+            if (focusModeActive && actualDiff > 3) {
+                // ถ้าหายไป 10 วิ แต่ Heartbeat ล่าสุดเพิ่งผ่านมาแค่ 1-2 วิ 
+                // แสดงว่า CPU ไม่ได้ถูก Freeze (ไม่ได้ล็อคจอจริง แต่แค่สลับแอป)
+                if (heartbeatDiff < actualDiff - 2) {
+                    isActuallySwitched = true;
+                }
+            }
+
+            if (actualDiff > 0) {
+                timeLeft = Math.max(0, timeLeft - actualDiff);
 
                 if (isActuallySwitched) {
-                    // ปัดไปเล่นแอปอื่น -> หักพลังงาน
-                    const energyPenalty = diffSeconds * 2.0; 
+                    // ลงโทษคนสลับแอป: หักพลังงาน x5 และโชว์ Alert
+                    const energyPenalty = actualDiff * 5.0; 
                     periodEnergy = Math.max(0, periodEnergy - energyPenalty);
+                    alert(`⚠️ ตรวจพบการสลับแอป! พลังงานลดลงอย่างรวดเร็ว`);
                 } else {
-                    // ปิดจอไปเรียนจริงๆ -> ได้แต้มสมาธิ
-                    totalFocusSeconds += diffSeconds;
-                    periodEnergy = Math.min(100, periodEnergy + (diffSeconds * 0.1));
+                    // คนปิดจอจริง: ได้แต้มโบนัสเล็กน้อย
+                    totalFocusSeconds += actualDiff;
+                    periodEnergy = Math.min(100, periodEnergy + (actualDiff * 0.1));
                 }
             }
         }
         
         localStorage.removeItem("lastExitTime");
+        const wasCheating = isActuallySwitched;
+        
         isActuallySwitched = false; 
+        focusModeActive = false; 
+        if (window.toggleFocusModeUI) window.toggleFocusModeUI(false);
+        
+        const msg = document.getElementById('status-msg');
+        if (msg && !hasFailedPeriod) msg.innerText = "กำลังใช้สมาธิ... ✨"; 
+        
         updateImage();
         updateUI();
         updateOnlineStatus("online");
 
-        if (periodEnergy <= 0) handleEnergyDepleted();
+        if (periodEnergy <= 0 || wasCheating && periodEnergy < 10) handleEnergyDepleted();
     }
 });
 
 async function handleEnergyDepleted() {
     if (!hasFailedPeriod && !isBreakMode) {
-        playSound('denied');
+        playSound('fail');
         hasFailedPeriod = true;
         const msg = document.getElementById('status-msg');
-        if (msg) { msg.innerText = "หลุดโฟกัสจนพลังหมด! ⚡"; msg.style.color = "#f44336"; }
+        if (msg) { 
+            msg.innerText = "หลุดโฟกัสจนพลังหมด! ⚡"; 
+            msg.style.color = "#f44336"; 
+        }
         const resetBtn = document.getElementById('reset-btn');
         if (resetBtn) resetBtn.style.display = "block";
+        
         if (score >= 5) score -= 5; else score = 0;
         await saveUserData();
         updatePointsUI();
@@ -342,6 +373,7 @@ async function handlePeriodEnd() {
         timeLeft = 1800;
         periodEnergy = 100;
         hasFailedPeriod = false;
+        focusModeActive = false;
         playSound('tap');
         alert(`🔔 เริ่มช่วงที่ ${currentPeriod}! กลับมาโฟกัสกันเถอะ`);
     }
@@ -353,6 +385,7 @@ window.restartSession = function () {
     hasFailedPeriod = false;
     periodEnergy = 100;
     timeLeft = 1800;
+    focusModeActive = false;
     const msg = document.getElementById('status-msg');
     if (msg) { msg.innerText = "กำลังใช้สมาธิ... ✨"; msg.style.color = "#4db6ac"; }
     const resetBtn = document.getElementById('reset-btn');
