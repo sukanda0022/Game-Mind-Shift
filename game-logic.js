@@ -60,8 +60,9 @@ let isActuallySwitched = false;
 
 // --- สร้างแถบตรวจจับล่องหน (Invisible Touch Guard) ---
 const touchGuard = document.createElement('div');
+// ค้นหาบรรทัดนี้ในโค้ดแล้วแก้เลขครับ
 Object.assign(touchGuard.style, {
-    position: 'fixed', bottom: '0', left: '0', width: '100%', height: '45px',
+    position: 'fixed', bottom: '0', left: '0', width: '100%', height: '80px', // เพิ่มความสูงให้โดนนิ้วง่ายขึ้น
     zIndex: '999999', pointerEvents: 'auto', background: 'transparent'
 });
 document.body.appendChild(touchGuard);
